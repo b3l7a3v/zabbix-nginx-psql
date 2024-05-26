@@ -11,14 +11,15 @@ services:
     container_name: zabbix_server
     env_file:
       - ./env_vars/.env_srv
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-    ports:
-      - '10051:10051'
-    networks:
-      - zabbix_network
+    network_mode: host
+#    ports:
+#      - '10051:10051'
+#    networks:
+#      - zabbix_network
     depends_on:
       - postgres_server
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
     ulimits:
       nproc: 65535
       nofile:
