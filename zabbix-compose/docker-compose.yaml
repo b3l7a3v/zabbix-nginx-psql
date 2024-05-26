@@ -1,0 +1,103 @@
+version: '3.8'
+services:
+
+#############################
+####### ZABBIX-SERVER #######
+#############################
+
+  zabbix_server:
+    image: "zabbix/zabbix-server-pgsql:ol-6.4-latest"
+    hostname: zabbix-server
+    container_name: zabbix_server
+    env_file:
+      - ./env_vars/.env_srv
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+    ports:
+      - '10051:10051'
+    networks:
+      - zabbix_network
+    depends_on:
+      - postgres_server
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.70'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+############################
+##### POSTGRES-SERVER ######
+############################
+
+  postgres_server:
+    image: "postgres:15-alpine"
+    hostname: postgres-server
+    container_name: postgres_server
+    env_file:
+      - ./env_vars/.env_db_pgsql
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    networks:
+      - zabbix_network
+    stop_grace_period: 1m
+    restart: always
+    volumes:
+      - /var/lib/zabbix_postgresql/data:/var/lib/postgresql/data:rw
+#   - ./env_vars/.ZBX_DB_CA_FILE:/run/secrets/root-ca.pem:ro
+#   - ./env_vars/.ZBX_DB_CERT_FILE:/run/secrets/server-cert.pem:ro
+#   - ./env_vars/.ZBX_DB_KEY_FILE:/run/secrets/server-key.pem:ro
+
+#############################
+######## ZABBIX-WEB #########
+#############################
+
+  zabbix_web:
+    image: zabbix/zabbix-web-nginx-pgsql
+    hostname: zabbix-web
+    container_name: zabbix_web
+    ports:
+      - '80:8080'
+      - '443:8443'
+    env_file:
+      - ./env_vars/.env_db_pgsql
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    depends_on:
+      - zabbix_server
+    networks:
+      - zabbix_network
+    labels:
+      com.zabbix.description: "Zabbix frontend on Nginx web-server with PostgreSQL database support"
+      com.zabbix.dbtype: "pgsql"
+    restart: always
+#  volumes:
+#   - ./env_vars/.ZBX_DB_CA_FILE:/run/secrets/root-ca.pem:ro
+#   - ./env_vars/.ZBX_DB_CERT_FILE:/run/secrets/client-cert.pem:ro
+#   - ./env_vars/.ZBX_DB_KEY_FILE:/run/secrets/client-key.pem:ro
+
+#############################
+######### NETWORKS ##########
+#############################
+
+networks:
+  zabbix_network:
+
+#############################
+########## SECRETS ##########
+#############################
+
+secrets:
+  POSTGRES_USER:
+    file: ./env_vars/.POSTGRES_USER
+  POSTGRES_PASSWORD:
+    file: ./env_vars/.POSTGRES_PASSWORD
